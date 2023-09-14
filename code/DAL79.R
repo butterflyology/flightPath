@@ -9,6 +9,7 @@ set.seed(1138)
 
 library(tidyverse)
 library(rgl)
+library(transformr)
 library(gganimate)
 library(rayshader)
 
@@ -26,7 +27,6 @@ DL79$Position <- NULL
 
 # Plots ----
 
-
 ## Create a 3D scatter plot ----
 open3d()
 plot3d(DL79$Longitude, DL79$Latitude, DL79$Altitude, 
@@ -41,11 +41,13 @@ close3d()
 
 
 ## Animated plot
-animated_plot <- ggplot(DL79, aes(x = Longitude, y = Latitude, z = Altitude)) +
-  geom_line(aes(group = Timestamp, color = Timestamp), linewidth = 2) +
+animated_plot <- DL79 %>%
+  ggplot(aes(x = Longitude, y = Latitude, z = Altitude)) +
+  geom_line(aes(color = Timestamp), size = 3) +
   scale_color_gradient(low = "blue", high = "yellow") +
   labs(title = "3D Path Animation", x = "Longitude", y = "Latitude", z = "Altitude") +
-  theme_minimal()
+  theme_minimal() +
+  theme(legend.position = "none")
 
 # Animate the plot
 animated_plot <- animated_plot +
@@ -56,4 +58,33 @@ animated_plot <- animated_plot +
 animated_plot
 
 # Save or display the animation
-animate(animated_plot, renderer = gifski_renderer("output/3d_animation.gif"))
+animate(animated_plot, renderer = gifski_renderer())
+
+
+## Another way at it
+open3d()
+# Create the 3D line plot
+lines3d(DL79$Longitude, DL79$Latitude, DL79$Altitude, col = colorRampPalette(c("blue", "yellow"))(length(DL79$Timestamp)))
+
+# Add labels to axes
+axes3d("x")
+axes3d("y")
+axes3d("z")
+
+# Set axis labels
+text3d(x = max(DL79$Longitude), y = min(DL79$Latitude), z = min(DL79$Altitude), text = "Longitude", adj = c(-0.2, 0.5))
+text3d(x = min(DL79$Longitude), y = max(DL79$Latitude), z = min(DL79$Altitude), text = "Latitude", adj = c(-0.2, 0.5))
+text3d(x = min(DL79$Longitude), y = min(DL79$Latitude), z = max(DL79$Altitude), text = "Altitude", adj = c(-0.2, 0.5))
+
+# Animate the plot (assuming 'animation' package is loaded)
+library(animation)
+rgl.snapshot("output/3d_animation.png", fmt = "png")
+ani.options(interval = 0.1)
+saveGIF({
+  for (i in seq_along(DL79$Timestamp)) {
+    subset_data <- DL79[1:i, ]
+    lines3d(subset_data$Longitude, subset_data$Latitude, subset_data$Altitude, 
+            col = colorRampPalette(c("blue", "yellow"))(length(subset_data$Timestamp)))
+  }
+}, movie.name = "output/3d_animation.gif", ani.width = 800, ani.height = 600, fps = 10)
+close3d()
